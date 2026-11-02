@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Squeek Runner</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Inter:wght@400;600&display=swap');
+
+    :root {
+      --bg: #070b14;
+      --panel: #111827;
+      --accent: #8b5cf6;
+      --accent2: #22d3a6;
+      --warn: #f87171;
+      --text: #f1f5f9;
+      --muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    header {
+      width: 100%;
+      max-width: 480px;
+      padding: 16px 16px 4px;
+      text-align: center;
+    }
+
+    h1 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 16px;
+      color: var(--accent2);
+      margin-bottom: 4px;
+    }
+
+    .subtitle { font-size: 12px; color: var(--muted); }
+
+    .status-bar {
+      width: 100%;
+      max-width: 480px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      padding: 10px 16px;
+    }
+
+    .stat {
+      background: var(--panel);
+      border-radius: 10px;
+      padding: 9px 4px;
+      text-align: center;
+      border: 1px solid #1e293b;
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 3px;
+    }
+
+    .stat-value {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 11px;
+      color: var(--accent2);
+    }
+
+    .stat-value.idle { color: var(--warn); }
+
+    #game-wrap {
+      position: relative;
+      width: calc(100% - 24px);
+      max-width: 480px;
+      height: 62vh;
+      min-height: 420px;
+      background: #0c1222;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 2px solid #1e293b;
+      margin: 0 12px;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      background: #0c1222;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(7, 11, 20, 0.94);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 20px;
+      text-align: center;
+      z-index: 30;
+    }
+
+    .overlay.hidden { display: none !important; }
+
+    .overlay h2 {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 14px;
+      color: var(--accent2);
+      line-height: 1.4;
+    }
+
+    .overlay p {
+      font-size: 13px;
+      color: var(--muted);
+      max-width: 280px;
+      line-height: 1.5;
+    }
+
+    button {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 12px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      padding: 14px 26px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.5; }
+
+    .controls-hint {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .power-meter {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      height: 8px;
+      background: #1e293b;
+      border-radius: 4px;
+      z-index: 5;
+    }
+
+    .power-fill {
+      height: 100%;
+      width: 30%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 4px;
+      transition: width 0.3s;
+    }
+
+    .score-display {
+      position: absolute;
+      top: 24px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 16px;
+      color: white;
+      z-index: 5;
+      pointer-events: none;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+    }
+
+    .hamster-status {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      background: rgba(17,24,39,0.92);
+      border-radius: 10px;
+      padding: 8px 12px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      z-index: 5;
+      border: 1px solid #1e293b;
+    }
+
+    .live-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--warn);
+      display: inline-block;
+      margin-right: 5px;
+    }
+
+    .live-dot.on { background: var(--accent2); }
+
+    .wallet-bar {
+      width: 100%;
+      max-width: 480px;
+      padding: 0 16px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .wallet-btn {
+      font-family: Inter, sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      background: #1a2236;
+      color: var(--text);
+      border: 1px solid #334155;
+      padding: 7px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    .wallet-btn.connected {
+      border-color: var(--accent2);
+      color: var(--accent2);
+    }
+
+    .wallet-address {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: monospace;
+    }
+
+    .attest-box {
+      background: var(--panel);
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 14px;
+      margin-top: 10px;
+      width: 100%;
+      max-width: 290px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .attest-box strong {
+      color: var(--accent2);
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .tx-link {
+      display: block;
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--accent2);
+      word-break: break-all;
+    }
+
+    footer {
+      max-width: 480px;
+      padding: 14px 16px 24px;
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    footer a { color: var(--accent2); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>SQUEEK RUNNER</h1>
+    <div class="subtitle">Powered by real hamster activity</div>
+  </header>
+
+  <div class="wallet-bar">
+    <button class="wallet-btn" id="wallet-btn">Connect Wallet</button>
+    <span class="wallet-address" id="wallet-address"></span>
+  </div>
+
+  <div class="status-bar">
+    <div class="stat">
+      <div class="stat-label">Hamster</div>
+      <div class="stat-value idle" id="hamster-state">IDLE</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">RPM</div>
+      <div class="stat-value" id="rpm">0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Height</div>
+      <div class="stat-value" id="block-height">—</div>
+    </div>
+  </div>
+
+  <div id="game-wrap">
+    <div class="power-meter"><div class="power-fill" id="power-fill"></div></div>
+    <div class="score-display" id="score">0</div>
+    <canvas id="game"></canvas>
+    <div class="hamster-status">
+      <div><span class="live-dot" id="live-dot"></span><span id="live-text">Connecting…</span></div>
+      <div id="multiplier">×1.0</div>
+    </div>
+
+    <div class="overlay" id="start-screen">
+      <h2>SQUEEK RUNNER</h2>
+      <p>Speed & score are controlled by Squeektoshi’s real wheel activity.</p>
+      <button id="start-btn">START RUN</button>
+      <div class="controls-hint">Tap or press Space to jump</div>
+    </div>
+
+    <div class="overlay hidden" id="gameover-screen">
+      <h2>RUN OVER</h2>
+      <p id="final-score">Score: 0</p>
+      <button id="retry-btn">RUN AGAIN</button>
+
+      <div class="attest-box" id="attest-box" style="display:none;">
+        <strong>Record on Sepolia</strong>
+        Sends a real transaction with your score + hamster state.
+        <button id="attest-btn" style="margin-top:12px;width:100%;">Send Transaction</button>
+        <a class="tx-link" id="tx-link" target="_blank" style="display:none;"></a>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Data from Squeekchain public API · Recording creates a real Sepolia tx
+  </footer>
+
+  <script>
+    // ========== LIVE HAMSTER ==========
+    const API = 'https://api.squeekchain.com/v1/status';
+    const SEPOLIA = '0xaa36a7';
+
+    let hamster = { running: false, rpm: 0, block: 0, work: 0, online: false };
+    let energy = 35;
+    let wallet = null;
+    let lastRun = null;
+
+    async function poll() {
+      try {
+        const res = await fetch(API + '?t=' + Date.now(), { cache: 'no-store' });
+        const d = await res.json();
+
+        // Live wheel data
+        if (d.measurement) {
+          const m = d.measurement;
+          hamster.rpm = Number(m.rpmMilli || 0) / 1000;
+          hamster.running = hamster.rpm > 3 || (m.coreStatus === 'RUNNING');
+          hamster.online = (m.freshness === 'online');
+        }
+
+        // Settled height - very defensive
+        let height = 0;
+        try {
+          if (d.builder) {
+            const anchor = d.builder.anchor || {};
+            const projected = d.builder.projected || {};
+            const raw = anchor.blockHeight || projected.blockHeight || '0';
+            height = parseInt(String(raw), 10) || 0;
+          }
+        } catch (err) {
+          console.warn('height parse error', err);
+        }
+        if (height > 0) {
+          hamster.height = height;
+        }
+
+        try {
+          if (d.builder && d.builder.anchor) {
+            hamster.work = parseInt(String(d.builder.anchor.cumulativeWork || '0'), 10) || 0;
+          }
+        } catch (e) {}
+
+        // Energy
+        if (hamster.running) {
+          energy = Math.min(100, energy + 2.5 + hamster.rpm / 50);
+        } else {
+          energy = Math.max(10, energy - 0.9);
+        }
+
+        // ===== UI UPDATE =====
+        const stateEl = document.getElementById('hamster-state');
+        if (stateEl) {
+          stateEl.textContent = hamster.running ? 'RUNNING' : 'IDLE';
+          stateEl.className = 'stat-value' + (hamster.running ? '' : ' idle');
+        }
+
+        const rpmEl = document.getElementById('rpm');
+        if (rpmEl) rpmEl.textContent = Math.round(hamster.rpm);
+
+        const heightEl = document.getElementById('block-height');
+        if (heightEl) {
+          if (hamster.height && hamster.height > 0) {
+            heightEl.textContent = Number(hamster.height).toLocaleString();
+          } else {
+            heightEl.textContent = '—';
+          }
+        }
+
+        const powerEl = document.getElementById('power-fill');
+        if (powerEl) powerEl.style.width = Math.min(100, energy) + '%';
+
+        const multEl = document.getElementById('multiplier');
+        if (multEl) multEl.textContent = '×' + getMult().toFixed(1);
+
+        const dot = document.getElementById('live-dot');
+        const txt = document.getElementById('live-text');
+        if (dot && txt) {
+          if (hamster.online) {
+            dot.classList.add('on');
+            txt.textContent = hamster.running
+              ? ('Running · ' + Math.round(hamster.rpm) + ' RPM')
+              : 'Resting';
+          } else {
+            dot.classList.remove('on');
+            txt.textContent = 'Connecting…';
+          }
+        }
+      } catch (e) {
+        console.error('Poll failed:', e);
+        const txt = document.getElementById('live-text');
+        if (txt) txt.textContent = 'API offline';
+      }
+    }
+    poll();
+    setInterval(poll, 3000);
+
+    function getMult() {
+      return Math.max(0.8, 0.7 + energy / 100 * 1.5 + Math.min(1.2, hamster.rpm / 60));
+    }
+    function getSpeed() {
+      return 3.4 * (1 + energy / 100 * 1.3) * (1 + Math.min(1, hamster.rpm / 70));
+    }
+
+    // ========== WALLET ==========
+    document.getElementById('wallet-btn').onclick = async () => {
+      if (wallet) {
+        wallet = null;
+        document.getElementById('wallet-btn').textContent = 'Connect Wallet';
+        document.getElementById('wallet-btn').classList.remove('connected');
+        document.getElementById('wallet-address').textContent = '';
+        return;
+      }
+      if (!window.ethereum) {
+        alert('Install MetaMask or another wallet');
+        return;
+      }
+      try {
+        const accs = await window.ethereum.request({ method: 'eth_requestAccounts' });
+        wallet = accs[0];
+        document.getElementById('wallet-btn').textContent = 'Connected';
+        document.getElementById('wallet-btn').classList.add('connected');
+        document.getElementById('wallet-address').textContent = wallet.slice(0,6) + '…' + wallet.slice(-4);
+      } catch (e) {}
+    };
+
+    // ========== GAME ==========
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let W = 0, H = 0, scale = 1;
+    let playing = false;
+    let score = 0;
+    let player = { x: 60, y: 0, vy: 0, w: 32, h: 32, onGround: true };
+    let obstacles = [], coins = [], particles = [];
+    let groundY = 0;
+    let frame = 0;
+    let lastObs = 0, lastCoin = 0;
+    let highScore = +localStorage.getItem('sr-hs') || 0;
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      W = Math.max(300, Math.floor(rect.width * dpr));
+      H = Math.max(400, Math.floor(rect.height * dpr));
+      canvas.width = W;
+      canvas.height = H;
+      scale = dpr;
+      groundY = (H / scale) * 0.78;
+    }
+
+    function startGame() {
+      // Force resize right before starting
+      resize();
+      if (W < 100 || H < 100) {
+        alert('Canvas size error. Try refreshing the page.');
+        return;
+      }
+
+      document.getElementById('start-screen').classList.add('hidden');
+      document.getElementById('gameover-screen').classList.add('hidden');
+
+      score = 0;
+      obstacles = [];
+      coins = [];
+      particles = [];
+      frame = 0;
+      lastObs = 0;
+      lastCoin = 0;
+      player.vy = 0;
+      player.onGround = true;
+      player.x = 60;
+      player.y = groundY - player.h;
+      document.getElementById('score').textContent = '0';
+
+      playing = true;
+      requestAnimationFrame(loop);
+    }
+
+    function jump() {
+      if (player.onGround && playing) {
+        player.vy = -10.5 * (0.95 + energy / 100 * 0.15);
+        player.onGround = false;
+      }
+    }
+
+    // Input
+    document.getElementById('start-btn').onclick = startGame;
+    document.getElementById('retry-btn').onclick = () => {
+      document.getElementById('gameover-screen').classList.add('hidden');
+      startGame();
+    };
+
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space' || e.code === 'ArrowUp') {
+        e.preventDefault();
+        if (!playing) startGame();
+        else jump();
+      }
+    });
+
+    canvas.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      if (!playing) startGame();
+      else jump();
+    });
+
+    function gameOver() {
+      playing = false;
+      const final = Math.floor(score);
+      if (final > highScore) {
+        highScore = final;
+        localStorage.setItem('sr-hs', highScore);
+      }
+
+      lastRun = {
+        score: final,
+        rpm: Math.round(hamster.rpm),
+        energy: Math.round(energy),
+        height: hamster.height,
+        work: hamster.work,
+        running: hamster.running,
+        ts: Date.now()
+      };
+
+      document.getElementById('final-score').textContent = 'Score: ' + final + '  ·  Best: ' + highScore;
+
+      const box = document.getElementById('attest-box');
+      const btn = document.getElementById('attest-btn');
+      const link = document.getElementById('tx-link');
+      link.style.display = 'none';
+
+      // Always show the box so user understands the feature
+      box.style.display = 'block';
+
+      if (wallet) {
+        btn.disabled = false;
+        btn.textContent = 'Send Transaction';
+        btn.style.opacity = '1';
+      } else {
+        btn.disabled = true;
+        btn.textContent = 'Connect Wallet First';
+        btn.style.opacity = '0.6';
+      }
+
+      document.getElementById('gameover-screen').classList.remove('hidden');
+    }
+
+    // Real Sepolia transaction
+    document.getElementById('attest-btn').onclick = async () => {
+      if (!wallet || !lastRun || !window.ethereum) return;
+      const btn = document.getElementById('attest-btn');
+      const link = document.getElementById('tx-link');
+      btn.disabled = true;
+      btn.textContent = 'Confirm in wallet…';
+
+      try {
+        let chainId = await window.ethereum.request({ method: 'eth_chainId' });
+        if (chainId !== SEPOLIA) {
+          try {
+            await window.ethereum.request({
+              method: 'wallet_switchEthereumChain',
+              params: [{ chainId: SEPOLIA }]
+            });
+          } catch (err) {
+            if (err.code === 4902) {
+              await window.ethereum.request({
+                method: 'wallet_addEthereumChain',
+                params: [{
+                  chainId: SEPOLIA,
+                  chainName: 'Sepolia',
+                  nativeCurrency: { name: 'ETH', symbol: 'ETH', decimals: 18 },
+                  rpcUrls: ['https://rpc.sepolia.org'],
+                  blockExplorerUrls: ['https://sepolia.etherscan.io']
+                }]
+              });
+            } else throw err;
+          }
+        }
+
+        const payload = JSON.stringify({
+          t: 'SqueekRunner',
+          s: lastRun.score,
+          h: lastRun.height,
+          w: lastRun.work,
+          r: lastRun.rpm,
+          e: lastRun.energy,
+          run: lastRun.running,
+          ts: lastRun.ts
+        });
+
+        let data = '0x';
+        for (let i = 0; i < payload.length; i++) {
+          data += payload.charCodeAt(i).toString(16).padStart(2, '0');
+        }
+
+        const txHash = await window.ethereum.request({
+          method: 'eth_sendTransaction',
+          params: [{
+            from: wallet,
+            to: wallet,
+            value: '0x0',
+            data: data
+          }]
+        });
+
+        btn.textContent = 'Sent ✓';
+        link.href = 'https://sepolia.etherscan.io/tx/' + txHash;
+        link.textContent = 'View on Etherscan →';
+        link.style.display = 'block';
+      } catch (err) {
+        console.error(err);
+        btn.disabled = false;
+        btn.textContent = 'Send Transaction';
+        if (err.code !== 4001) alert('Failed. Need Sepolia ETH for gas.');
+      }
+    };
+
+    function loop() {
+      if (!playing) return;
+      frame++;
+
+      const spd = getSpeed();
+      const mult = getMult();
+
+      player.vy += 0.52;
+      player.y += player.vy;
+      if (player.y + player.h >= groundY) {
+        player.y = groundY - player.h;
+        player.vy = 0;
+        player.onGround = true;
+      }
+
+      score += 0.07 * mult * (spd / 3.5);
+
+      if (frame - lastObs > Math.max(40, 75 - spd * 4)) {
+        const hh = 24 + Math.random() * 40;
+        obstacles.push({ x: W/scale + 20, y: groundY - hh, w: 18 + Math.random()*14, h: hh, tall: Math.random() > 0.7 });
+        lastObs = frame;
+      }
+      if (frame - lastCoin > 45) {
+        coins.push({ x: W/scale + 10, y: groundY - 50 - Math.random()*90, r: 8 });
+        lastCoin = frame;
+      }
+
+      for (let i = obstacles.length - 1; i >= 0; i--) {
+        const o = obstacles[i];
+        o.x -= spd;
+        if (o.x + o.w < 0) { obstacles.splice(i,1); continue; }
+        if (player.x < o.x + o.w && player.x + player.w > o.x &&
+            player.y < o.y + o.h && player.y + player.h > o.y) {
+          gameOver();
+          return;
+        }
+      }
+
+      for (let i = coins.length - 1; i >= 0; i--) {
+        const c = coins[i];
+        c.x -= spd;
+        if (c.x + c.r < 0) { coins.splice(i,1); continue; }
+        const dx = Math.max(player.x, Math.min(c.x, player.x + player.w)) - c.x;
+        const dy = Math.max(player.y, Math.min(c.y, player.y + player.h)) - c.y;
+        if (dx*dx + dy*dy < c.r*c.r) {
+          score += 20 * mult;
+          coins.splice(i,1);
+        }
+      }
+
+      // draw
+      ctx.fillStyle = '#0c1222';
+      ctx.fillRect(0, 0, W, H);
+      ctx.save();
+      ctx.scale(scale, scale);
+      const w = W / scale;
+      const h = H / scale;
+
+      // ground
+      ctx.fillStyle = '#151e32';
+      ctx.fillRect(0, groundY, w, h - groundY);
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, groundY, w, 3);
+
+      // obstacles
+      obstacles.forEach(o => {
+        ctx.fillStyle = o.tall ? '#f87171' : '#8b5cf6';
+        ctx.beginPath();
+        ctx.roundRect(o.x, o.y, o.w, o.h, 4);
+        ctx.fill();
+      });
+
+      // coins
+      coins.forEach(c => {
+        ctx.beginPath();
+        ctx.arc(c.x, c.y, c.r, 0, Math.PI*2);
+        ctx.fillStyle = '#22d3a6';
+        ctx.fill();
+      });
+
+      // player
+      const px = player.x, py = player.y;
+      if (hamster.running || energy > 60) {
+        ctx.beginPath();
+        ctx.arc(px + 16, py + 16, 24, 0, Math.PI*2);
+        ctx.strokeStyle = hamster.running ? 'rgba(34,211,166,0.35)' : 'rgba(139,92,246,0.3)';
+        ctx.lineWidth = 2;
+        ctx.stroke();
+      }
+      ctx.fillStyle = '#fb923c';
+      ctx.beginPath();
+      ctx.roundRect(px, py, 32, 32, 7);
+      ctx.fill();
+      // ears
+      ctx.beginPath();
+      ctx.arc(px+7, py+3, 6, 0, Math.PI*2);
+      ctx.arc(px+25, py+3, 6, 0, Math.PI*2);
+      ctx.fill();
+      // eyes
+      ctx.fillStyle = '#0c1222';
+      ctx.beginPath();
+      ctx.arc(px+11, py+14, 3, 0, Math.PI*2);
+      ctx.arc(px+21, py+14, 3, 0, Math.PI*2);
+      ctx.fill();
+
+      ctx.restore();
+      document.getElementById('score').textContent = Math.floor(score);
+      requestAnimationFrame(loop);
+    }
+
+    // Initial size
+    window.addEventListener('resize', resize);
+    setTimeout(resize, 100);
+    setTimeout(resize, 400);
+  </script>
+</body>
+</html>
